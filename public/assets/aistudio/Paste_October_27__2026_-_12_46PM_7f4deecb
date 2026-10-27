@@ -1,0 +1,897 @@
+# Product Requirements Document (PRD)
+
+## Storage & CWR Charges Management System
+
+Version 1.0 · 27 October 2026 · Consolidated PRD with resolved business decisions
+
+This is the complete consolidated PRD, including the ten resolved business decisions, the full 24-field manual-entry form, source-of-truth rules, charge consolidation, custom reporting, Excel import/export, data integrity, and acceptance criteria.
+
+## 1. Executive summary
+
+The Storage & CWR Charges Management System is an independent platform for managing shipment records, Storage charges, Custom Warehouse Rent (CWR), related charges, and reporting using an existing Excel workbook as its operational starting point.
+
+The system must preserve the original workbook's operational workflow while providing a searchable master database, reliable charge calculations, manual data completion, custom reports, and downloadable Excel exports.
+
+The platform must not invent missing shipment details, charges, formulas, or processing statuses. Every value must be traceable to an uploaded source, a verified manual entry, or a confirmed calculation rule.
+
+### 1.1 Product objectives
+
+1. Import and validate the existing Excel workbook.
+2. Identify charge entries that require processing from the Pending PO sheet.
+3. Find shipment particulars using either a CJ number or a BL number.
+4. Allow an authorized operator to complete missing information manually using all 24 required fields.
+5. Group all relevant charges for the same CJ into a single summary block.
+6. Calculate totals using verified workbook formulas and approved business rules.
+7. Provide an independent, searchable custom reporting workspace.
+8. Export a downloadable Excel workbook that preserves original operational sheets, formulas, formatting, and the existing REPORTS SUMMARY layout.
+9. Maintain persistent master data so verified corrections and additions remain available after the application is closed or restarted.
+10. Provide auditability, duplicate detection, validation, and recovery safeguards.
+
+### 1.2 Success criteria
+
+The product is successful when an operator can import a workbook, locate a pending charge, retrieve or manually complete shipment particulars, verify the resulting calculations, generate a custom report, and export a consistent Excel workbook without losing original source data or existing workbook structure.
+
+## 2. Problem statement
+
+The current workflow depends heavily on Excel and manual cross-referencing between sheets. This creates risks including:
+
+- Repeated searching for shipment information.
+- Missing or ambiguous CJ and BL matches.
+- Inconsistent treatment of multiple charge rows under the same CJ.
+- Incorrect totals when formulas or source values are interpreted inconsistently.
+- Accidental duplication during repeated imports.
+- Loss of manually verified information.
+- Differences between application reports and exported Excel summaries.
+- Unclear processing status when a CJ appears in Billed or QUERIED sheets but individual charge entries may still need attention.
+
+The new system must address these problems while preserving the original workbook as a usable operational artifact.
+
+## 3. Scope
+
+### 3.1 Included in the initial release
+
+- Excel workbook upload and validation.
+- Import of Pending PO, Report, Billed, QUERIED, and relevant supporting sheets.
+- CJ and BL search.
+- Shipment-detail matching.
+- Manual entry and correction.
+- Charge-level processing status.
+- Charge classification and aggregation.
+- Formula-based calculations.
+- Independent custom reporting workspace.
+- Excel export with original sheets and formatting preserved as far as technically possible.
+- Persistent master database.
+- Duplicate detection and conflict warnings.
+- Audit history and backup/restore.
+
+### 3.2 Excluded from the initial release
+
+Unless separately approved, the first release will not include:
+
+- Direct integration with port, shipping-line, customs, or transport systems.
+- Automatic verification against external government or commercial databases.
+- Automatic payment processing.
+- Public access to the application.
+- Multi-user approval workflows beyond the initial single-operator model.
+- Automatic invention or estimation of missing shipment details or charges.
+
+## 4. Users and permissions
+
+| Role                   | Permissions                                                                                                 |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------- |
+| Authorized operator    | Import workbooks, search records, enter or correct data, verify records, generate reports, export workbooks |
+| Administrator          | All operator permissions, configuration, backup/restore, access and system management                       |
+| Reviewer, future phase | Review exceptions and approve designated financial or identifier corrections                                |
+
+### 4.1 Initial operating model
+
+The first release is designed for a single authorized operator on one protected computer.
+
+All material changes must be recorded in an audit log. If multi-user hosting is introduced later, role-based access, authentication, and additional approval controls must be implemented.
+
+## 5. Source-of-truth hierarchy
+
+The platform must distinguish operational charge data from supporting shipment particulars.
+
+### 5.1 Pending PO — authoritative source for charges
+
+Pending PO is the master operational source for charge entries requiring processing.
+
+The system must import and preserve relevant columns, including:
+
+- CJ number.
+- BL number.
+- Container identifier.
+- Details or charge description.
+- PO number.
+- TOTAL.
+- COMMENT.
+
+The actual source workbook may contain additional columns, which must be inspected and preserved.
+
+Rules:
+
+- Storage amounts must be sourced from eligible Storage charge rows in Pending PO.
+- CWR amounts must be sourced from eligible CWR charge rows in Pending PO.
+- Other charge amounts must be sourced from their relevant Pending PO entries or another explicitly approved source.
+- The application must not generate charge amounts from shipment particulars, Report values, or assumptions.
+- If TOTAL contains an Excel formula, the system must inspect the formula and its evaluated value where available. It must not treat formula text as a numeric amount.
+- Original source rows must remain traceable to their imported records.
+
+### 5.2 Report — supporting source for shipment particulars
+
+The Report sheet is used to retrieve shipment particulars by:
+
+- CJ number; or
+- BL number.
+
+When a match is found, the system should display the relevant fields and their source.
+
+If there are multiple matches, conflicting details, or no reliable match, the system must flag the issue rather than silently choose or fabricate a value.
+
+### 5.3 Billed and QUERIED — processing evidence
+
+Billed and QUERIED sheets may help determine processing status.
+
+However:
+
+- A CJ appearing in Billed does not automatically mean every charge entry for that CJ has been processed.
+- A CJ appearing in QUERIED does not automatically mean all its charges are queried.
+- Processing status must be assessed at the individual charge-entry level.
+- Where the evidence is insufficient, the entry must remain pending review.
+
+### 5.4 Verified manual entries
+
+An authorized operator may enter shipment particulars from verified documents or other approved sources when the workbook has no reliable match.
+
+Manual values must be marked as manually entered or verified, with the operator, timestamp, and source notes recorded.
+
+Manual entries must persist in the application's master database. Where applicable, they must populate the corresponding records in the exported Report and/or Pending PO sheets without silently overwriting conflicting source data.
+
+## 6. Functional requirements
+
+### FR-01: Excel workbook upload and validation
+
+The system shall allow the operator to upload the existing Excel workbook.
+
+It must:
+
+1. Identify relevant sheets, including Pending PO, Report, Billed, QUERIED, and REPORTS SUMMARY.
+2. Read column names, row values, formulas, and available formatting.
+3. Preserve the original uploaded file separately from the application's working data.
+4. Validate that required sheets and columns exist.
+5. Report missing sheets, unexpected column names, blank identifiers, invalid values, and formula errors.
+6. Provide an import preview before committing data to the master database.
+7. Display an import summary with accepted rows, warnings, conflicts, and rejected rows.
+8. Record the source filename, import timestamp, and import batch identifier.
+
+The system must not silently discard unrecognized columns or source rows.
+
+### FR-02: Pending PO work queue
+
+The system shall present a searchable work queue based on Pending PO charge entries.
+
+The queue must show, at minimum, the available values for:
+
+- CJ.
+- BL.
+- Container.
+- Details.
+- PO No.
+- TOTAL.
+- COMMENT.
+- Processing status.
+- Data completeness status.
+
+The operator must be able to filter and sort the queue by identifiers, charge category, status, date where available, and data-quality warnings.
+
+Each row must link to its source record and the related CJ record.
+
+### FR-03: Search by CJ or BL
+
+The system shall allow searches using either the CJ number or BL number.
+
+Search results must display relevant shipment particulars and associated charge entries.
+
+The system must:
+
+- Support exact identifier matching.
+- Normalize harmless formatting differences only where the normalization rule is approved.
+- Preserve the original identifier as imported.
+- Show multiple matches when ambiguity exists.
+- Allow the operator to select the correct record or enter verified information manually.
+- Avoid merging different shipments solely because their identifiers look similar.
+
+If no reliable match exists, the interface must offer manual completion rather than inventing missing data.
+
+### FR-04: Shipment matching and data completeness
+
+For each pending charge, the system must attempt to retrieve shipment particulars from Report using CJ and/or BL.
+
+Matching rules:
+
+1. A unique, consistent CJ match may be used.
+2. A unique, consistent BL match may be used.
+3. If CJ and BL resolve to different records, flag a conflict.
+4. If either identifier returns multiple plausible records, flag ambiguity.
+5. If no reliable match exists, allow manual completion.
+6. Do not automatically overwrite an existing verified value with a conflicting imported value.
+
+Each field should carry provenance information identifying whether it came from the source workbook, a verified manual entry, or a calculated value.
+
+### FR-05: Manual-entry form — all 24 required fields
+
+The manual-entry form must include all 24 fields listed below. The operator must be able to save incomplete draft records and return to them later.
+
+| No. | Field                   | Input and handling                                                                       |
+| --- | ----------------------- | ---------------------------------------------------------------------------------------- |
+| 1   | FILE                    | CJ number or shipment reference                                                          |
+| 2   | BL                      | Bill of Lading number                                                                    |
+| 3   | Size                    | Container size or workbook-defined size value                                            |
+| 4   | ShippingLine            | Shipping line                                                                            |
+| 5   | DOCS RECEIVED DATE      | Date                                                                                     |
+| 6   | DischargeDate           | Date                                                                                     |
+| 7   | CarryIn Date            | Date                                                                                     |
+| 8   | DODate                  | Date                                                                                     |
+| 9   | AssessmentNotice        | Date or workbook-defined value; confirm against source                                   |
+| 10  | ReleaseOrderPrintDate   | Date                                                                                     |
+| 11  | PortCharges             | Treat as a date field based on workbook examples; confirm against actual source workbook |
+| 12  | Allocation request date | Date                                                                                     |
+| 13  | allocation date         | Date                                                                                     |
+| 14  | DELAYS IN ALLOCATION    | Calculated field; formula must be verified                                               |
+| 15  | Truck Number            | Text                                                                                     |
+| 16  | LOADED                  | Preserve the workbook's data type and meaning                                            |
+| 17  | CLEARANCE               | Calculated field; formula must be verified                                               |
+| 18  | CLIENT DELAY            | Calculated field; formula must be verified                                               |
+| 19  | storage amount          | Calculated from eligible Storage charge entries in Pending PO                            |
+| 20  | CWR                     | Calculated from eligible CWR charge entries in Pending PO                                |
+| 21  | COMMENTS                | Free-text notes                                                                          |
+| 22  | TRANSPORT TOTAL         | Calculated using verified charge classification and formula                              |
+| 23  | CLEARING TOTAL          | Calculated using verified charge classification and formula                              |
+| 24  | CLIENT TOTAL            | Calculated using verified client-billable charge rules                                   |
+
+#### 6.5.1 Form behavior
+
+The form must:
+
+- Support creating a new record and editing an existing record.
+- Display the CJ and BL identifiers prominently.
+- Show the source of each populated value.
+- Highlight required information that is missing or inconsistent.
+- Permit saving an incomplete draft.
+- Validate field formats and dates.
+- Automatically recalculate dependent fields when relevant input changes, once the workbook formula has been verified.
+- Distinguish editable fields from calculated fields.
+- Prevent unauthorized direct editing of calculated fields.
+- Record changes in the audit history.
+- Warn before overwriting a conflicting verified value.
+- Allow the operator to mark information as verified and record supporting notes.
+
+The system must preserve the original field names or a clear mapping to them so exported data remains compatible with the workbook.
+
+#### 6.5.2 Formula verification requirement
+
+The following formulas are initial reference rules, not yet confirmed final formulas:
+
+- DELAYS IN ALLOCATION: allocation date minus allocation request date.
+- CLEARANCE: DODate minus DischargeDate.
+- CLIENT DELAY: DOCS RECEIVED DATE minus DischargeDate.
+
+These must be compared with the actual workbook formulas and existing business practice before implementation is finalized.
+
+TRANSPORT TOTAL, CLEARING TOTAL, and CLIENT TOTAL must be determined from the actual workbook formulas and charge classifications. The system must not invent their calculation rules.
+
+### FR-06: Manual data persistence and conflict management
+
+Verified manual data must be saved to the application's persistent master database.
+
+The system must:
+
+- Retain manual entries across application restarts.
+- Link manual entries to the relevant CJ, BL, container, and charge records where applicable.
+- Preserve the value originally imported from Excel.
+- Record the verified value separately when a correction is made.
+- Record who made the change, when, and why.
+- Warn when a manual value conflicts with an imported or previously verified value.
+- Require an explicit operator decision before resolving the conflict.
+- Apply approved changes to exported workbook records where applicable.
+
+The system must never imply that a manual update has changed the original uploaded workbook. The original file remains preserved, and changes are reflected in the application database and generated export.
+
+### FR-07: Charge consolidation by CJ
+
+The system shall group all relevant charge entries for the same CJ into one CJ summary block.
+
+For example, a CJ may have multiple Storage entries, multiple CWR entries, and other charges. These entries must remain together in the CJ block while retaining individual line-item traceability.
+
+The summary must:
+
+- Display the CJ identifier.
+- Show related BL and container identifiers.
+- List individual charge entries.
+- Display charge descriptions, PO numbers, amounts, comments, and processing statuses where available.
+- Calculate Storage and CWR totals from the eligible Pending PO rows.
+- Display other totals only when their classification and calculation rules are verified.
+- Identify missing or disputed entries.
+- Avoid counting the same imported source row twice.
+
+Where one CJ contains multiple containers, the system must use a parent CJ record with linked container records and charge entries. Container-specific details must be preserved. The CJ summary aggregates applicable charges without losing the container-level breakdown.
+
+### FR-08: Processing status at charge-entry level
+
+Each charge entry must have its own status.
+
+The initial statuses are:
+
+- Pending — not yet confirmed as processed.
+- In Review — ambiguous, incomplete, or conflicting information requires attention.
+- Billed — supported by evidence that the specific charge entry was billed.
+- Queried — supported by evidence that the specific charge entry was queried.
+- Resolved — a previously queried or disputed entry has been resolved, where the workflow supports this status.
+
+Status assignment must be evidence-based. Presence of the CJ number alone in Billed or QUERIED is insufficient to mark all associated entries.
+
+The status model must be configurable if workbook inspection reveals a different established workflow.
+
+### FR-09: Formula and calculation engine
+
+The application must have a single calculation engine used by the master records, custom reports, and Excel exports.
+
+Requirements:
+
+1. Reproduce verified workbook formulas and calculation rules.
+2. Recalculate dependent fields when inputs change.
+3. Use consistent date, amount, and rounding behavior across the application.
+4. Preserve the underlying unrounded values where appropriate.
+5. Display missing inputs as incomplete or unavailable rather than silently treating them as zero.
+6. Flag negative or logically inconsistent date intervals for review.
+7. Retain calculation results and their input references for traceability.
+8. Provide tests comparing the application outputs against known workbook examples.
+
+The engine must not treat the same charge differently in the custom report and exported workbook.
+
+### FR-10: Independent custom reporting workspace
+
+The platform must provide a reporting workspace independent of the original Excel REPORTS SUMMARY sheet.
+
+Users must be able to:
+
+- Search by CJ, BL, container, and other supported identifiers.
+- Filter by charge category and processing status.
+- Filter by relevant dates.
+- View a CJ-level summary block.
+- Expand a CJ to inspect its underlying charge entries.
+- View Storage, CWR, and other verified totals.
+- Identify incomplete records and conflicts.
+- Sort and group results.
+- Generate a report for selected records or filters.
+- Print or export report results where supported.
+
+The reporting workspace is an independent interface, not a replacement for the original workbook layout. Its data must come from the authoritative application master records and calculation engine.
+
+### FR-11: Excel export and workbook preservation
+
+The system must generate a downloadable Excel workbook that preserves the original operational workbook structure as far as technically possible.
+
+The exported workbook must:
+
+- Include the original operational sheets and their established layout.
+- Preserve the existing REPORTS SUMMARY layout.
+- Preserve relevant column order, headings, number formats, cell formatting, widths, merged cells, and formulas where supported.
+- Update appropriate records using the application's verified master data.
+- Include approved manual additions and corrections in the appropriate exported sheets.
+- Keep CJ-related charges grouped correctly in the report summary.
+- Use the same calculations and totals as the application.
+- Avoid modifying unrelated original records or formatting.
+- Flag unsupported Excel features or formula-preservation limitations before export where possible.
+
+The export must not overwrite the user's original uploaded file. It must create a separate downloadable copy.
+
+If a formula cannot be reliably recalculated by the application's spreadsheet library, the system must clearly distinguish formula preservation from formula evaluation. It must not silently claim that all Excel formulas have been recalculated.
+
+### FR-12: Duplicate detection and import reconciliation
+
+The system must preserve every distinct source row while avoiding repeated imports of the same source entry.
+
+Rules:
+
+- Use a stable source-row identifier where available, or a documented composite identity based on source file/batch, sheet, row, and source content.
+- Re-importing an unchanged source entry must not duplicate it in the master database.
+- Similar-looking entries must be flagged for review rather than automatically deleted.
+- Legitimate repeated charges must remain separate when confirmed as distinct entries.
+- The operator must be able to review potential duplicates and record the resolution.
+- Every import and reconciliation action must be logged.
+
+The system must not merge charge entries simply because they share a CJ number, BL number, amount, or description.
+
+### FR-13: Audit trail and corrections
+
+The system must record significant changes, including:
+
+- Workbook imports.
+- Record creation and updates.
+- Manual field changes.
+- Verification and conflict resolution.
+- Charge status changes.
+- Duplicate-resolution decisions.
+- Formula/configuration changes.
+- Report generation and export events where practical.
+
+Each audit record should include the timestamp, affected record, changed field, previous value where available, new value, action, and operator identity.
+
+For the initial single-user release, the authorized operator may verify their own corrections. In a future multi-user release, financial changes and identifier conflicts may require a second-person approval step.
+
+Calculated fields should be read-only except through a documented, audited override process.
+
+### FR-14: Report and export usability
+
+The platform must allow the operator to:
+
+- Preview a report before exporting.
+- Choose applicable records and filters.
+- View totals and data-quality warnings.
+- Download the Excel export.
+- Print or export custom reporting results where supported.
+- See a clear indication of the source workbook and export generation time.
+
+Exports must use the same verified totals and business rules as the application.
+
+## 7. Data model
+
+The system should use a relational data model that separates shipments, containers, charge entries, source rows, and calculated summaries.
+
+| Entity            | Purpose                                    | Key data                                                       |
+| ----------------- | ------------------------------------------ | -------------------------------------------------------------- |
+| ImportBatch       | Records each workbook import               | Batch ID, filename, timestamp, status                          |
+| SourceRow         | Preserves imported source data             | Batch ID, sheet, row reference, original values                |
+| Shipment          | Parent shipment/CJ record                  | CJ, BL, shipping line, dates, verification state               |
+| Container         | Links one or more containers to a shipment | Container identifier, size, shipment reference                 |
+| ChargeEntry       | Individual operational charge              | CJ, BL, container, Details, PO No., amount, comment, status    |
+| ShipmentDetails   | Shipment particulars used for reporting    | All 24 fields, including provenance and verification           |
+| CalculationResult | Stores or derives formula outputs          | Formula version, input references, result, validation status   |
+| AuditEvent        | Tracks changes                             | Record ID, field, old/new values, timestamp, actor             |
+| ExportBatch       | Tracks generated workbook files            | Source batch, generation timestamp, warnings, output reference |
+
+### 7.1 Relationships
+
+- One shipment may contain multiple containers.
+- One shipment may have multiple charge entries.
+- A charge entry may be associated with a container when the source supports it.
+- One import batch may contain many source rows.
+- Each imported charge entry must retain a reference to its original source row.
+- A calculation result must be traceable to the inputs and formula version used.
+- A manual correction must be traceable to the previous value and the operator who changed it.
+
+### 7.2 Data provenance
+
+Each important field must identify its source, such as:
+
+- `Pending PO — source row`
+- `Report — matched by CJ`
+- `Report — matched by BL`
+- `Manual — awaiting verification`
+- `Manual — verified`
+- `Calculated — formula version`
+
+The application must retain both the source value and the currently accepted value when a conflict or correction occurs.
+
+## 8. Business rules and resolved decisions
+
+The following decisions are adopted as the baseline for version 1.0. Workbook-specific details remain subject to verification against the actual source workbook.
+
+### Decision 1: Processing status
+
+Decision: Track processing status at the individual charge-entry level, not only at the CJ level.
+
+Billed and QUERIED sheets provide evidence but do not automatically determine the status of every charge associated with a CJ. Uncertain entries remain pending or in review.
+
+### Decision 2: Duplicate handling
+
+Decision: Preserve all source rows and suppress only repeated imports of the same identified source entry.
+
+Potentially similar but distinct entries are flagged for review. Confirmed legitimate repeated charges remain separate.
+
+### Decision 3: Total calculations
+
+Decision: Calculate totals using verified source charges and approved classification rules.
+
+- Storage = sum of eligible Storage charge entries from Pending PO.
+- CWR = sum of eligible CWR charge entries from Pending PO.
+- TRANSPORT TOTAL = calculated using verified transport classifications and workbook rules.
+- CLEARING TOTAL = calculated using verified clearing classifications and workbook rules.
+- CLIENT TOTAL = calculated using verified client-billable charge rules.
+
+The application must not infer missing values or use Report as a substitute source for Storage or CWR amounts.
+
+### Decision 4: Date and duration rules
+
+Decision: Use calendar-day differences unless the source workbook or approved business policy specifies otherwise.
+
+- Do not exclude weekends or public holidays by default.
+- Leave duration fields incomplete when required dates are missing.
+- Flag negative or inconsistent durations.
+- Do not silently clamp negative results to zero.
+
+The three initial date formulas listed in FR-05 must be confirmed against the source workbook before being treated as final.
+
+### Decision 5: PortCharges field
+
+Decision: Treat PortCharges as a date field in the initial mapping because available workbook examples suggest date-style values.
+
+This mapping must be confirmed against the actual workbook. If a distinct monetary port-charge field exists, it must be modeled separately and must not be confused with the date field.
+
+### Decision 6: Multiple containers
+
+Decision: Use one parent CJ record with linked containers and charge entries.
+
+Container-specific data must be retained, while the CJ summary shows all relevant charges in a single block. Aggregated totals must remain traceable to individual entries and containers.
+
+### Decision 7: Manual corrections
+
+Decision: Permit the authorized single operator to verify and correct records, with full audit history.
+
+Financial values and identifier conflicts must not be silently overwritten. A future multi-user version may require second-person approval for designated changes.
+
+### Decision 8: Currency and rounding
+
+Decision: Preserve the currency, units, precision, and rounding behavior established by the workbook.
+
+- Do not infer currency solely from the user's location.
+- Maintain sufficient internal precision for calculations.
+- Display two decimal places by default where appropriate, subject to the workbook's actual conventions.
+- Apply consistent rounding across the application and export.
+- Preserve underlying unrounded values where needed.
+- Flag unknown or inconsistent currency information.
+
+### Decision 9: Retention and backups
+
+Decision: Adopt a seven-year retention period as the initial planning baseline, subject to applicable law and company policy.
+
+Preserve uploaded workbooks separately from generated exports. Provide protected backups and a tested restore process. Retention rules must be configurable if organizational or legal requirements differ.
+
+### Decision 10: Deployment
+
+Decision: Begin with a local browser-based application on one authorized computer, using a persistent local database and protected backups.
+
+Do not expose the application publicly. Future multi-user deployment must introduce secure authentication, access control, suitable database hosting, backup controls, and an approval workflow where required.
+
+## 9. User interface and workflow
+
+### 9.1 Main navigation
+
+The application should provide these primary sections:
+
+1. Dashboard — overall workload, totals where verified, pending items, and warnings.
+2. Import Workbook — upload, inspect, validate, and reconcile workbook data.
+3. Pending PO Queue — searchable list of charge entries requiring attention.
+4. Shipment Search — search by CJ or BL.
+5. Shipment Details — view and edit the 24-field record.
+6. CJ Charge Summary — consolidated charges grouped by CJ.
+7. Custom Reports — filters, summaries, and detailed charge reports.
+8. Excel Export — preview and generate the downloadable workbook.
+9. Audit History — inspect changes and conflict resolutions.
+10. Settings and Backup — manage configuration, data backup, and restoration.
+
+### 9.2 Standard workflow
+
+1. Upload the workbook. Validate the relevant sheets and columns, and preview the import.
+2. Reconcile the data. Detect repeated imports, potential duplicates, and conflicting source records.
+3. Review Pending PO. Select the charge entry or CJ requiring attention.
+4. Search by CJ or BL. Retrieve matching shipment particulars from Report.
+5. Complete missing information. Use the 24-field form and verified manual information when needed.
+6. Verify the charges and calculations. Review the underlying Pending PO entries, formula results, and warnings.
+7. Generate a custom report. View each CJ in one block, with charge details and verified totals.
+8. Export the workbook. Create a separate downloadable Excel file with updated applicable records and the original REPORTS SUMMARY layout.
+
+### 9.3 Data-quality indicators
+
+The interface should distinguish:
+
+- Complete and verified.
+- Incomplete.
+- Unmatched.
+- Ambiguous match.
+- Conflicting values.
+- Potential duplicate.
+- Calculation error.
+- Pending processing.
+- In review.
+
+Use clear labels and explanatory messages rather than relying on color alone.
+
+## 10. Technical architecture
+
+### 10.1 Initial architecture
+
+A local browser-based application is recommended for the initial single-user release.
+
+Suggested technology choices:
+
+| Layer              | Suggested technology                          | Purpose                                                               |
+| ------------------ | --------------------------------------------- | --------------------------------------------------------------------- |
+| User interface     | Streamlit or equivalent                       | Search, forms, queues, reporting                                      |
+| Data processing    | Python and pandas                             | Import, validation, transformation, aggregation                       |
+| Excel handling     | openpyxl, with additional tooling if required | Read and write workbooks while preserving supported workbook features |
+| Persistent storage | SQLite                                        | Store shipments, charge entries, verification data, and audit events  |
+| Calculation layer  | Python calculation service                    | Centralize verified formulas and total rules                          |
+| Testing            | pytest or equivalent                          | Validate formulas, imports, exports, and reconciliation               |
+| Backup             | Protected local backup process                | Recover the master database and source files                          |
+
+This is a proposed implementation, not a restriction on the development team. The chosen technology must satisfy the functional requirements, especially Excel preservation and reliable formula handling.
+
+### 10.2 Master database authority
+
+The application's master database and calculation engine are authoritative for the application's accepted records, verified corrections, and generated totals.
+
+The uploaded workbook remains the preserved source artifact. The system must not conflate the original workbook with the current application master data.
+
+### 10.3 Formula and Excel compatibility
+
+Excel files may contain formulas, cached formula results, formatting, merged cells, named ranges, macros, external links, or other advanced features.
+
+Before choosing the final Excel processing approach, the implementation team must inspect the actual workbook and test its features.
+
+The application must distinguish:
+
+- Preserving a formula in the exported workbook.
+- Calculating a formula inside the application.
+- Updating a cached formula result.
+- Recalculating a formula when the workbook is opened in Excel.
+
+These are not automatically equivalent. Unsupported features must be documented, and the exported file must be tested in the intended spreadsheet software.
+
+## 11. Non-functional requirements
+
+### 11.1 Accuracy and consistency
+
+- Application calculations must match verified reference workbook results.
+- Custom reports and exports must use the same calculation engine.
+- Source values must remain traceable.
+- No missing financial values may be silently converted to zero.
+- Conflicts must be visible and resolvable.
+
+### 11.2 Performance
+
+The application should provide responsive search, filtering, and CJ aggregation for the expected workbook size. The development team must benchmark against the actual workbook and agree on target row counts and response times before final acceptance.
+
+### 11.3 Reliability
+
+- The master database must persist across application restarts.
+- Imports and updates must be recoverable from partial failures.
+- Backups must be restorable.
+- Export failures must not damage the original workbook or master database.
+
+### 11.4 Usability
+
+- The interface must be usable by an operator familiar with Excel but not necessarily a programmer.
+- Forms must identify missing fields and calculation errors clearly.
+- Search must support CJ and BL identifiers.
+- The operator must be able to save drafts and return later.
+- Error messages must explain the problem and the next action.
+
+### 11.5 Maintainability
+
+- Business rules and formulas must be centralized rather than duplicated across reports.
+- Formula versions and configuration changes must be traceable.
+- The system must support future changes in workbook columns and reporting needs without requiring a complete redesign.
+
+## 12. Security, integrity, and recovery
+
+The initial local deployment must:
+
+- Restrict access to the authorized computer and operator.
+- Store the master database and backups in protected locations.
+- Preserve the original uploaded workbook.
+- Avoid exposing the database or uploaded documents through a public endpoint.
+- Provide a documented backup and restore process.
+- Record material changes in the audit log.
+- Validate uploaded workbook structure and handle malformed files safely.
+- Prevent accidental overwriting of original source files.
+
+If the platform later becomes multi-user or hosted, it must add appropriate authentication, role-based access, encrypted transport, secure secret management, access logging, and database protection.
+
+## 13. MVP delivery plan
+
+### Phase 1 — Workbook inspection and rule confirmation
+
+- Inspect the actual workbook and its sheets.
+- Identify formulas, date fields, charge classifications, and source relationships.
+- Confirm the meaning of all 24 fields.
+- Establish reference examples for calculations.
+- Document unsupported Excel features and preservation risks.
+
+Exit condition: Business rules and formulas required for the initial release are documented and supported by workbook evidence or explicit operator approval.
+
+### Phase 2 — Import and persistent master data
+
+- Implement workbook upload and validation.
+- Create the master database and source-row tracking.
+- Import Pending PO, Report, Billed, and QUERIED.
+- Implement duplicate detection and reconciliation.
+- Build the Pending PO queue and CJ/BL search.
+
+Exit condition: The operator can import the workbook, search for records, inspect source data, and identify ambiguous or incomplete records without losing source traceability.
+
+### Phase 3 — Manual completion and calculations
+
+- Implement the full 24-field form.
+- Support incomplete drafts and verified manual entries.
+- Implement provenance, conflict handling, and audit history.
+- Implement verified date and charge formulas.
+- Add validation and calculation tests.
+
+Exit condition: Manual data persists, conflicts are visible, and calculated results match verified reference cases.
+
+### Phase 4 — Custom reporting
+
+- Implement CJ-level charge consolidation.
+- Build searchable and filterable custom reports.
+- Add data-quality and processing-status indicators.
+- Verify totals against the master calculation engine.
+
+Exit condition: Every relevant charge is traceable to its source and appears in the appropriate CJ summary.
+
+### Phase 5 — Excel export and acceptance
+
+- Preserve original operational sheets and the REPORTS SUMMARY layout.
+- Populate appropriate approved records and corrections.
+- Validate formatting, formulas, totals, and source-row integrity.
+- Test download, reopen, and recovery workflows.
+
+Exit condition: The exported workbook passes agreed reconciliation and compatibility tests without changing unrelated source records.
+
+## 14. Acceptance criteria
+
+The system must not be accepted until the following criteria have been tested.
+
+### 14.1 Workbook import
+
+- The application can upload and inspect the source workbook.
+- Relevant sheets and columns are mapped correctly.
+- The import preview identifies missing or unexpected data.
+- Original source data remains preserved.
+- Re-importing the same unchanged workbook does not create duplicate copies of the same source entries.
+
+### 14.2 Search and matching
+
+- Searching by CJ retrieves relevant charge entries and shipment particulars.
+- Searching by BL retrieves relevant charge entries and shipment particulars.
+- Missing matches can be completed manually.
+- Multiple or conflicting matches are clearly flagged.
+- The system does not silently merge unrelated shipments.
+
+### 14.3 Manual entry
+
+- All 24 required fields are available.
+- Incomplete drafts can be saved.
+- Verified manual data persists after restart.
+- Conflicting values require an explicit resolution.
+- Changes have an audit trail.
+- Calculated fields use verified formulas and respond to relevant input changes.
+
+### 14.4 Charge handling
+
+- Storage totals are calculated from eligible Pending PO Storage entries.
+- CWR totals are calculated from eligible Pending PO CWR entries.
+- Other totals use verified classifications and formulas.
+- Multiple charge rows for the same CJ appear together in one CJ block.
+- Multi-container shipments retain container-level detail.
+- Distinct legitimate repeated charges are not automatically removed.
+- Billed and QUERIED evidence is evaluated at the charge-entry level.
+
+### 14.5 Reporting
+
+- The custom reporting workspace supports search and filtering.
+- Reports use the authoritative master data and calculation engine.
+- Missing or disputed information is visibly flagged.
+- Report totals reconcile to the underlying charge entries.
+
+### 14.6 Excel export
+
+- A separate downloadable Excel workbook is generated.
+- Original operational sheets are preserved as required.
+- The REPORTS SUMMARY layout is preserved.
+- Approved manual additions and corrections are reflected in the appropriate sheets.
+- Application totals and export totals agree.
+- Unrelated source data is not silently overwritten.
+- The exported workbook can be reopened in the target spreadsheet software.
+- Any unsupported formula or formatting behavior is documented.
+
+### 14.7 Recovery and auditability
+
+- Backup and restore have been tested.
+- The application can recover from a failed import or export without corrupting the master database.
+- Material changes can be traced through the audit log.
+- The original uploaded workbook remains separately available.
+
+## 15. Testing strategy
+
+Testing must use the actual source workbook and a set of reference cases verified by the operator.
+
+### 15.1 Unit tests
+
+Test:
+
+- CJ and BL normalization.
+- Duplicate-source-row detection.
+- Charge classification.
+- Storage and CWR aggregation.
+- Date and duration formulas.
+- Missing-value behavior.
+- Currency precision and rounding.
+- Conflict detection.
+- Status transitions.
+
+### 15.2 Integration tests
+
+Test:
+
+- Importing all relevant sheets.
+- Searching and matching records.
+- Saving manual entries.
+- Recalculating totals.
+- Generating custom reports.
+- Exporting the workbook.
+- Re-importing the exported workbook where applicable.
+- Backup and restore.
+
+### 15.3 Reconciliation tests
+
+For a representative set of CJs:
+
+1. Identify all relevant Pending PO charge entries.
+2. Confirm the associated shipment particulars from Report or verified manual data.
+3. Calculate Storage, CWR, and other totals using approved rules.
+4. Compare application results with the verified workbook results.
+5. Inspect the exported REPORTS SUMMARY.
+6. Confirm the underlying source rows remain traceable and are not duplicated.
+
+The operator must approve the reference results before they are used as final acceptance baselines.
+
+## 16. Risks and mitigations
+
+| Risk                                                          | Mitigation                                                             |
+| ------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| Workbook formulas are unclear or inconsistent                 | Inspect formulas and compare with known examples before implementation |
+| Duplicate or ambiguous CJ/BL matches                          | Show competing matches and require explicit resolution                 |
+| Charge amounts are incorrectly classified                     | Maintain an approved charge-classification mapping and test it         |
+| Manual corrections conflict with source data                  | Preserve source values and require an explicit resolution              |
+| Excel formatting or formulas are not preserved perfectly      | Test with the actual workbook and document unsupported features        |
+| Reports disagree with exported totals                         | Use one authoritative calculation engine                               |
+| The database is lost or corrupted                             | Implement protected backups and test restoration                       |
+| A CJ-level status incorrectly marks all its charges processed | Track status at charge-entry level                                     |
+| Missing data is mistaken for zero                             | Preserve missing states and show completeness warnings                 |
+| A future multi-user release permits unauthorized changes      | Add authentication, permissions, and appropriate approval controls     |
+
+## 17. Remaining implementation confirmations
+
+The ten business decisions are resolved as the baseline. The following items are implementation confirmations, not unresolved product-direction decisions.
+
+1. Actual workbook formulas: Verify the three initial date formulas and determine the exact formulas for TRANSPORT TOTAL, CLEARING TOTAL, and CLIENT TOTAL.
+2. PortCharges field: Confirm whether the source workbook uses this as a date, an amount, or a field with a different meaning.
+3. Charge classification: Identify which Pending PO descriptions belong to Storage, CWR, transport, clearing, and client-billable categories.
+4. Status mapping: Determine how individual rows in Billed and QUERIED can be reliably linked to individual Pending PO entries.
+5. Excel features: Check formulas, formatting, macros, named ranges, merged cells, and other features in the actual workbook.
+6. Retention policy: Confirm the seven-year planning baseline against company policy and applicable law.
+7. Acceptance data: Select representative CJs and have their expected calculations verified by the operator.
+8. Deployment details: Confirm the target computer, operating system, workbook size, backup location, and spreadsheet software used to open exports.
+
+No formula, classification, or source-matching rule should be marked final until supported by the workbook or explicitly approved by the operator.
+
+## 18. Final product definition
+
+The Storage & CWR Charges Management System will be a standalone, searchable platform with a persistent master database, an authoritative calculation engine, a complete 24-field manual-entry form, CJ-level charge consolidation, a custom reporting workspace, and a downloadable Excel export that preserves the existing operational workbook and REPORTS SUMMARY layout.
+
+The governing principles are:
+
+- Pending PO is the source of truth for Storage and CWR charge entries and amounts.
+- Report supplies supporting shipment particulars through CJ or BL matching.
+- Billed and QUERIED provide processing evidence, not automatic CJ-wide status.
+- Verified manual information persists and remains traceable.
+- All relevant charges for the same CJ are grouped into one summary block without losing line-item detail.
+- Calculations are based on verified workbook formulas and approved rules.
+- The application, custom reports, and exported workbook must remain consistent.
+- Original source data must be preserved, and conflicts must never be silently overwritten.
+- The system must not fabricate missing data, amounts, formulas, or statuses.
+
+This consolidated PRD is the baseline specification for implementation. The next development step is to inspect the actual workbook, verify its formulas and source-column mappings, and turn the confirmed rules into automated tests before completing the calculation and export engines.

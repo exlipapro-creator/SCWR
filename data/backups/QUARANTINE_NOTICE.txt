@@ -1,0 +1,5 @@
+QUARANTINE NOTICE
+File: QUARANTINED_CONTAMINATED_backup_cwr_storage_2026-10-27T11-49-59-856Z.sqlite
+Reason: Contaminated with interactive test markers (PO-TEST-12345, IN_REVIEW status on CHG-CJ-2026-000091-STORAGE-1).
+Status: Quarantined on 2026-10-27. DO NOT RESTORE.
+Authority: Financial Data Integrity Auditor.

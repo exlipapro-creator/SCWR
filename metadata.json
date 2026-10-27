@@ -1,0 +1,6 @@
+{
+  "name": "Storage & CWR Charges Management System",
+  "description": "Financial charge management, 24-field shipment ledger, reconciliation, and Excel workbook preservation for Storage and CWR operations.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
